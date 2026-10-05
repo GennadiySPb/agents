@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Шпаргалка — идентификация сессий OpenCode</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+<style>body{font-size:16px}main{max-width:44rem}</style>
+</head>
+<body>
+<main>
+
+<nav class="crumbs"><a href="../MISSION.md">Миссия</a> · <a href="../GLOSSARY.md">Глоссарий</a> · Шпаргалка</nav>
+
+<h1>Шпаргалка: найти сессию, процесс, автора</h1>
+<p class="lede">Одна страница, все команды курса. Проверено на opencode 2.0.22,
+git 2.47.3, хост bxvnbacnlg.</p>
+
+<h2>Получить свою сессию</h2>
+<pre><code>echo $OPENCODE_SESSION_ID
+opencode session list              # все сессии проекта, новые сверху
+opencode api get /api/session/$OPENCODE_SESSION_ID</code></pre>
+
+<h2>Устойчивость идентификаторов</h2>
+<table>
+  <thead><tr><th>Идентификатор</th><th>Переживает рестарт</th><th>Различает процессы</th><th>Источник</th></tr></thead>
+  <tbody>
+    <tr><td><code>session_id</code></td><td><strong>да</strong></td><td>нет</td><td>env + БД</td></tr>
+    <tr><td>instance UUID</td><td>нет</td><td>нет</td><td>service.json</td></tr>
+    <tr><td><code>run</code></td><td>нет</td><td><strong>да</strong></td><td>только лог</td></tr>
+    <tr><td><code>pid</code> из /api/info</td><td>нет</td><td>нет</td><td>API</td></tr>
+    <tr><td>пароль сервиса</td><td>да</td><td>нет</td><td>service.json</td></tr>
+  </tbody>
+</table>
+
+<h2>Сессия → логи</h2>
+<pre><code>grep "session.id=$OPENCODE_SESSION_ID" ~/.local/share/opencode/log/opencode.log
+
+grep "$OPENCODE_SESSION_ID" ~/.local/share/opencode/log/opencode.log \
+  | grep -oE 'run=[0-9a-f]{8}' | sort -u
+
+# все сессии в логе
+grep -oE 'session\.id=ses_[A-Za-z0-9]+' ~/.local/share/opencode/log/opencode.log | sort -u</code></pre>
+
+<h2>Роли в логе</h2>
+<p><code>role=cli|server</code> стоит у 1056 строк из 118762 (0.9%), так что
+считать надо аккуратно, а не ждать число, равное размеру лога.</p>
+<pre><code>grep -c 'role=cli'    ~/.local/share/opencode/log/opencode.log
+grep -c 'role=server' ~/.local/share/opencode/log/opencode.log
+grep 'run=8fc3b1d5'   ~/.local/share/opencode/log/opencode.log</code></pre>
+
+<h2>Проекты: почему не путь</h2>
+<pre><code>opencode api get /api/project</code></pre>
+<p>Воркtree дают несколько проектов на один каталог, плюс проект <code>global</code>
+для <code>/</code>. Идентифицировать проект — только по <code>project.id</code>.</p>
+
+<h2>Заголовки: где искать</h2>
+<p>В OpenAPI (116 путей) заголовков нет. Они в бинарнике
+<code>~/.opencode/bin/opencode</code>, 204 МБ:</p>
+<pre><code>strings -n 6 ~/.opencode/bin/opencode | grep -oE 'x-opencode-[a-z-]+' | sort -u
+# x-opencode-client      x-opencode-session-id
+# x-opencode-directory   x-opencode-parent-session-id
+# x-opencode-project     x-opencode-session
+# x-opencode-ticket</code></pre>
+<div class="aside">
+<strong><code>~/.local/bin/opencode</code> — это bash-обёртка на 944 байта.</strong>
+<code>strings</code> по ней даёт ноль совпадений, и это выглядит как
+«заголовков не существует». Настоящий бинарник лежит в
+<code>~/.opencode/bin/</code>.
+</div>
+<p><code>x-opencode-directory</code> читается сервером — меняет ответ
+<code>/api/location</code>:</p>
+<pre><code>P=$(python3 -c 'import json;print(json.load(open("$HOME/.local/state/opencode/service.json"))["password"])')
+curl -s -u "opencode:$P" -H "x-opencode-directory: /home/pgv/pdf-pulse" \
+  http://127.0.0.1:49374/api/location</code></pre>
+
+<h2>Автор коммита</h2>
+<pre><code>git log --author=sisyphus --oneline              # по позывному (author)
+git log --grep='Assisted-by: sisyphus' --oneline  # по трейлеру
+git log --grep='issue #118' --format='%s'          # стыковка с GitHub</code></pre>
+<p>В модели — что писали:</p>
+<pre><code>git log --format='%B' | grep -o 'Assisted-by: [a-z]* ([^,]*' | sort | uniq -c</code></pre>
+<div class="aside">
+<strong>На GitHub автора агента нет.</strong> 100 PR в pdf-pulse: 96 от
+<code>GennadiySPb</code>, 4 от <code>dependabot[bot]</code>. Поле <code>user:</code>
+даёт «кто нажал кнопку». Атрибуция живёт только в git.
+</div>
+
+<h2>Трейлеры в коммите</h2>
+<pre><code>git commit -m "feat: module" \
+  --trailer="Assisted-by: sisyphus (opencode, issue #118)" \
+  --trailer="OpenCode-Session: $OPENCODE_SESSION_ID"
+
+git log -1 --format=%B | git interpret-trailers --parse</code></pre>
+<p>Замена трейлера — amend с полным сообщением. Флага
+<code>--file-in-place</code> у <code>interpret-trailers</code> нет;
+<code>--in-place</code> дописывает, а не заменяет, и на amend даёт пустой коммит.
+На stdin команда только печатает.</p>
+
+<h2>Процессы</h2>
+<pre><code>pgrep -af opencode | while read -r pid cmd; do
+  printf '%-7s %-8s %s\n' "$pid" "$(ps -p "$pid" -o etime= | tr -d ' ')" "$cmd"
+done</code></pre>
+<p><code>pgrep -f opencode</code> ловит и CLI, и tmux, и сам grep.</p>
+
+<h2>Диагностика</h2>
+<pre><code>kill -SIGPROF $PID   # cpu-&lt;pid&gt;-&lt;ts&gt;.cpuprofile
+kill -SIGUSR1 $PID   # heap-&lt;pid&gt;-&lt;ts&gt;.heapsnapshot</code></pre>
+
+<h2>Проверить сервис, не трогая основной</h2>
+<pre><code>mkdir -p /tmp/iso/{state,data,config,cache}
+cd /tmp/iso
+XDG_STATE_HOME=$PWD/state XDG_DATA_HOME=$PWD/data \
+XDG_CONFIG_HOME=$PWD/config XDG_CACHE_HOME=$PWD/cache \
+  opencode serve --service --port 45999</code></pre>
+<p>Без <code>--service</code> инстанс не регистрируется и просто печатает пароль.
+Провайдерские ключи не наследуются — свой <code>auth.json</code> нужен, иначе
+<code>invalid x-api-key</code>.</p>
+
+<footer>
+  Возврат к <a href="../lessons/0001-session-vs-process.html">уроку 1</a> ·
+  <a href="../GLOSSARY.md">глоссарий</a> · <a href="../RESOURCES.md">источники</a>
+</footer>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 1 — сессия против процесса</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+
+<nav class="crumbs"><a href="../MISSION.md">Миссия</a> · <a href="../RESOURCES.md">Источники</a> · Урок 1</nav>
+
+<h1>Сессия ≠ процесс</h1>
+<p class="lede">OpenCode различает четыре вещи, и они путаются между собой.
+Первый урок — научиться их не путать.</p>
+
+<h2>Вопрос, из которого вырос этот урок</h2>
+
+<p>Есть четыре идентификатора. Три из них выглядят как «имя процесса», но ведут себя
+по-разному. Вопрос: <strong>какой из них переживёт перезапуск сервиса, а какой нет?</strong></p>
+
+<table>
+  <thead><tr><th>Идентификатор</th><th>Где лежит</th><th>Похоже на имя процесса?</th></tr></thead>
+  <tbody>
+    <tr><td><code>session_id</code></td><td>БД, <code>ses_</code>+26 симв.</td><td>да</td></tr>
+    <tr><td>instance UUID</td><td><code>service.json</code></td><td>да</td></tr>
+    <tr><td><code>pid</code> из <code>/api/info</code></td><td>отдаёт сервис</td><td>да</td></tr>
+    <tr><td><code>run</code> в логе</td><td>только grep по логу</td><td>да</td></tr>
+  </tbody>
+</table>
+
+<p>Интуиция говорит: instance UUID — это «имя установки», он обязан переживать
+рестарт. <strong>Это неверно.</strong> На этой машине проверено четырьмя
+перезапусками изолированного инстанса:</p>
+
+<pre><code>старт 1: fff38e17-4648-40b2-bf31-c1dd719f38ac  pid 32333
+старт 2: 38383ff6-06bc-4570-b344-992fb7e28e3e  pid 32381
+старт 3: 129b8582-d3dd-4929-8d01-d9f768c9fb1c  pid 32406
+старт 4: ab7c0b00-ab0c-49c8-a55e-ebd831cd2ea7  pid 32504</code></pre>
+
+<p>Один и тот же каталог состояния, тот же порт, четыре разных UUID. Он
+генерируется заново при каждом старте.</p>
+
+<h2>Что переживает рестарт</h2>
+
+<p>Сессия создаётся в БД, и БД перезапуск не трогает. Проверено: сессия
+<code>ses_ef2f72252ffe25fcYS2o9XeAcS</code> создана через <code>POST /api/session</code>,
+затем процесс убит и поднят заново — сессия читается и после.</p>
+
+<p>Пароль сервиса тоже пережил рестарт, в отличие от UUID. Это не документировано
+нигде.</p>
+
+<div class="aside">
+<strong>Почему это важно для поиска.</strong> Если искать «что делал агент вчера»,
+сессия — единственное, что выживёт. UUID сменился, <code>run</code> исчез,
+<code>pid</code> новый. Остаётся <code>ses_…</code>.
+</div>
+
+<h2>Про pid — отдельная ловушка</h2>
+
+<p><code>/api/info</code> отдаёт <code>pid</code>. Выглядит как pid процесса. На деле
+это pid <strong>фонового сервиса</strong>, а он общий для всех агентов на машине:</p>
+
+<pre><code>$ opencode api get /api/info
+{"version":"2.0.22","pid":12279, ...}</code></pre>
+
+<p>Пять агентов на этой машине, у всех в логе один и тот же pid 12279. Включать его
+в ключ идентичности бессмысленно — он не различает ничего.</p>
+
+<h2>Про run — единственный, кто различает процессы</h2>
+
+<p><code>run=&lt;8 hex&gt;</code> стоит в каждой строке лога. Это единственное поле,
+которое уникально для <em>процесса</em> в момент его жизни. Но:</p>
+
+<ul>
+  <li>в окружении его нет — только <code>OPENCODE_SESSION_ID</code>, <code>OPENCODE</code>, <code>OPENCODE_TERMINAL</code></li>
+  <li>в API его нет — <code>/api/session/{id}/log</code> отдаёт сообщения сессии, не <code>run</code></li>
+  <li>в логе он есть у 118762 строк из 118762, так что в этом смысле он полон</li>
+  <li>связь <code>run</code>↔<code>session</code> — many-to-many: 54 <code>run</code> встречаются с несколькими сессиями, 19 сессий — с несколькими <code>run</code></li>
+</ul>
+
+<p>Достать его можно только grep'ом, и он может вернуть не один результат.</p>
+
+<h2>Что дано штатно</h2>
+
+<p><code>$OPENCODE_SESSION_ID</code> — переменная окружения, которую opencode
+экспортирует в каждый процесс. Это и есть ответ на исходный вопрос «как найти
+сессию»: не нужен ни API, ни лог, ни БД.</p>
+
+<pre><code>$ echo $OPENCODE_SESSION_ID
+ses_ef3bd28b8ffedrxhMBdkA9Xem4</code></pre>
+
+<h2>Проверь себя</h2>
+
+<div class="quiz">
+  <p class="q">Какой идентификатор переживает перезапуск сервиса opencode?</p>
+  <button data-ok="0">session_id</button>
+  <button data-ok="0">instance_id</button>
+  <button data-ok="0">service_pid</button>
+  <button data-ok="1">run_in_log</button>
+  <div class="why">
+    Ни один из четырёх. <code>session_id</code> — единственный, кто переживает
+    рестарт. UUID генерируется заново при каждом старте, <code>pid</code> меняется,
+    <code>run</code> не переживает рестарт и достаётся только из лога.
+  </div>
+</div>
+
+<div class="quiz">
+  <p class="q">Откуда берётся значение <code>run</code> при поиске сессии?</p>
+  <button data-ok="0">env_variable</button>
+  <button data-ok="0">api_response</button>
+  <button data-ok="0">database_row</button>
+  <button data-ok="1">log_grep_only</button>
+  <div class="why">
+    Только из лога. В окружении его нет, в API нет, в БД нет — он генерируется
+    как <code>randomUUID().slice(0,8)</code> и пишется в строки лога.
+  </div>
+</div>
+
+<h2>Сделай сам</h2>
+
+<p>Три команды, каждая должна дать осмысленный вывод:</p>
+
+<pre><code># 1. твоя сессия — из окружения, без API
+echo $OPENCODE_SESSION_ID
+
+# 2. метаданные сессии: агент, проект, родитель
+opencode api get /api/session/$OPENCODE_SESSION_ID
+
+# 3. run твоей сессии — только так
+grep "$OPENCODE_SESSION_ID" ~/.local/share/opencode/log/opencode.log \
+  | grep -oE 'run=[0-9a-f]{8}' | sort -u</code></pre>
+
+<p>В третьей команде посчитай, сколько разных <code>run</code> вышло. Если больше
+одного — это тот many-to-many из §«Про run», и это нормально.</p>
+
+<h2>Источник для чтения</h2>
+
+<p>Первоисточник, который стоит прочитать целиком:
+<a href="https://opencode.ai/v2/docs/troubleshooting/">OpenCode V2 — Troubleshooting</a>.
+Это единственная страница документации, где упомянуты <code>run</code>,
+<code>role</code>, путь к логу и файлы <code>service.json</code>. Обрати внимание на
+разделение <code>~/.local/state/opencode/service.json</code> (регистрация сервера)
+и <code>~/.config/opencode/service.json</code> (пароль) — два разных файла, при
+переносе конфигурации нужны оба.</p>
+
+<footer>
+  Урок 1 из курса «Идентификация сессий и процессов OpenCode».<br>
+  Задавай вопросы по ходу — я преподаватель, объясню и покажу на своей машине.<br>
+  Дальше: <a href="../GLOSSARY.md">глоссарий</a> ·
+  <a href="../reference/cheatsheet.html">шпаргалка</a> ·
+  <a href="../NOTES.md">что дальше</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
