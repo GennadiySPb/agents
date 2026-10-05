@@ -1,0 +1,188 @@
+/* Shared stylesheet — every lesson links this, so the course looks like one thing */
+
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #555;
+  --rule: #d8d4cc;
+  --accent: #7a2e2e;
+  --ok: #2d5f2d;
+  --no: #8b2b2b;
+  --bg-code: #f7f5f0;
+  --measure: 34rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0;
+  padding: 3.5rem 1.5rem 6rem;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color: var(--ink);
+  background: #fdfcfa;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+main { max-width: var(--measure); margin: 0 auto; }
+
+h1, h2, h3 {
+  font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+}
+
+h1 { font-size: 1.85rem; margin: 0 0 0.5rem; }
+h2 {
+  font-size: 1.18rem;
+  margin: 2.6rem 0 0.75rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+}
+h3 { font-size: 0.98rem; margin: 1.8rem 0 0.5rem; color: var(--ink-soft); }
+
+.lede {
+  color: var(--ink-soft);
+  font-size: 1.02rem;
+  font-style: italic;
+  margin: 0 0 2rem;
+}
+
+nav.crumbs {
+  font-family: -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 1.6rem;
+}
+nav.crumbs a { color: var(--ink-soft); text-decoration: none; }
+nav.crumbs a:hover { color: var(--accent); }
+
+code, pre, .tag {
+  font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 0.82em;
+}
+
+code {
+  background: var(--bg-code);
+  padding: 0.1em 0.32em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--bg-code);
+  border-left: 2.5px solid var(--rule);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+  margin: 0.9rem 0;
+}
+pre code { background: none; padding: 0; }
+
+.tag {
+  display: inline-block;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.14em 0.44em;
+  border-radius: 3px;
+  vertical-align: 0.08em;
+  font-weight: 600;
+}
+.tag.std { background: #e8eef5; color: #2c4a6e; }
+.tag.api { background: #eaf0e9; color: #3c5c3a; }
+.tag.log { background: #f3ece3; color: #6b4c2a; }
+.tag.db  { background: #ece9f2; color: #4a3d63; }
+.tag.gap { background: #f5e6e6; color: var(--no); }
+.tag.ok  { background: #e6f0e6; color: var(--ok); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+th, td {
+  text-align: left;
+  padding: 0.42rem 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-family: -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+blockquote {
+  margin: 1.2rem 0;
+  padding: 0.1rem 0 0.1rem 1rem;
+  border-left: 2.5px solid var(--accent);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.aside {
+  background: #f6f1e6;
+  border-left: 2.5px solid #b8905a;
+  padding: 0.8rem 1rem;
+  margin: 1.3rem 0;
+  font-size: 0.92rem;
+}
+.aside strong { color: #6b4c2a; }
+
+.retrieval {
+  background: #fbf9f4;
+  border: 1px solid var(--rule);
+  padding: 1.2rem 1.3rem;
+  margin: 2rem 0;
+  border-radius: 4px;
+}
+.retrieval h3 { margin-top: 0; color: var(--ink); }
+
+.quiz { margin: 1.6rem 0; }
+.quiz .q {
+  font-family: -apple-system, "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.8rem;
+}
+.quiz button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+  font-family: "SF Mono", Menlo, monospace;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.55rem 0.8rem;
+  margin-bottom: 0.45rem;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.quiz button:hover { border-color: var(--accent); }
+.quiz button.reveal { background: #eef3ee; border-color: var(--ok); }
+.quiz button.wrong { background: #f7ecec; border-color: var(--no); }
+.quiz .why {
+  display: none;
+  font-size: 0.87rem;
+  color: var(--ink-soft);
+  padding: 0.5rem 0.2rem 0.8rem 0.3rem;
+}
+.quiz .why.on { display: block; }
+
+footer {
+  margin-top: 3.5rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.87rem;
+  color: var(--ink-soft);
+}
+footer a { color: var(--accent); }

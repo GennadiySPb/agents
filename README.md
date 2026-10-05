@@ -49,7 +49,8 @@ contains-studio-agents/
 │   ├── frontend-developer.md
 │   ├── mobile-app-builder.md
 │   ├── rapid-prototyper.md
-│   └── test-writer-fixer.md
+│   ├── test-writer-fixer.md
+│   └── opencode-identification/     # course, not an agent — see below
 ├── marketing/
 │   ├── app-store-optimizer.md
 │   ├── content-creator.md
@@ -93,6 +94,16 @@ contains-studio-agents/
 - **mobile-app-builder** - Create native iOS/Android experiences
 - **rapid-prototyper** - Build MVPs in days, not weeks
 - **test-writer-fixer** - Write tests that catch real bugs
+
+Plus course material, which is not an agent:
+
+- **[opencode-identification](engineering/opencode-identification/)** - Course on
+  telling OpenCode sessions, processes, and commit authors apart. Verified against
+  opencode 2.0.22 and git 2.47.3. Start with
+  [`lessons/0001-session-vs-process.html`](engineering/opencode-identification/lessons/0001-session-vs-process.html),
+  then keep [`reference/cheatsheet.html`](engineering/opencode-identification/reference/cheatsheet.html)
+  open. This directory holds no `.md` agent files, so `cp -r agents/* ~/.claude/agents/`
+  skips it.
 
 ### Product Department (`product/`)
 - **feedback-synthesizer** - Transform complaints into features
